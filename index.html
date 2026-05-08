@@ -185,7 +185,7 @@
   <div class="header-glow"></div>
   <div class="header-inner">
     <div class="eyebrow">未來學院 · Future Academy · 2026</div>
-    <h1>每月<span>大講堂 x 直播</span></h1>
+    <h1>講座<span>計畫</span></h1>
     <p class="subtitle">// LECTURE SERIES · 2026 · ONLINE</p>
     <div class="header-meta">
       <div class="meta-item"><span class="meta-label">場次總數</span><span class="meta-value" id="stat-total">—</span></div>
@@ -214,6 +214,7 @@
 
 <footer>
   <div class="footer-brand">未來學院</div>
+  <div class="footer-note" id="footer-time">資料來源 · Google Sheets · 講座安排工作表</div>
 </footer>
 
 <!-- MODAL -->
@@ -266,28 +267,42 @@
 
   // ── 載入活動 ──────────────────────────────────
   async function loadEvents() {
+    let json;
     try {
-      const res  = await fetch(GAS_URL + '?action=events');
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error);
-      allEvents = (json.data || []).filter(e =>
-        e['活動 ID'] !== '' && e['活動 ID'] !== null && e['活動 ID'] !== undefined &&
-        e['標題'] !== '' && e['標題'] !== null && e['標題'] !== undefined
-      );
-      renderEvents(allEvents);
-      updateStats(allEvents);
-      buildFilterBar(allEvents);
-      updateFooterTime();
+      const res = await fetch(GAS_URL + '?action=events');
+      json = await res.json();
     } catch (err) {
-      showError(err.message);
+      safeSetHTML('events-list', '<div class="error-state"><p>// 網路錯誤，請稍後再試</p><button class="retry-btn" onclick="loadEvents()">重新載入</button></div>');
+      return;
     }
+
+    if (!json || !json.ok) {
+      safeSetHTML('events-list', '<div class="error-state"><p>// API 錯誤：' + (json && json.error || '未知') + '</p><button class="retry-btn" onclick="loadEvents()">重新載入</button></div>');
+      return;
+    }
+
+    allEvents = (json.data || []).filter(e => e['活動 ID'] && e['標題']);
+
+    try { renderEvents(allEvents); } catch(e) { console.error('renderEvents error:', e); }
+    try { updateStats(allEvents); } catch(e) { console.error('updateStats error:', e); }
+    try { buildFilterBar(allEvents); } catch(e) { console.error('buildFilterBar error:', e); }
+    try { updateFooterTime(); } catch(e) { console.error('updateFooterTime error:', e); }
+  }
+
+  function safeSetHTML(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  }
+
+  function safeSetText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
   }
 
   function updateStats(events) {
-    const el = id => document.getElementById(id);
-    if (el('stat-total')) el('stat-total').textContent = events.length;
-    if (el('stat-live'))  el('stat-live').textContent  = events.filter(e => e['類型'] === '直播').length;
-    if (el('stat-hall'))  el('stat-hall').textContent  = events.filter(e => e['類型'] === '大講堂').length;
+    safeSetText('stat-total', events.length);
+    safeSetText('stat-live',  events.filter(e => e['類型'] === '直播').length);
+    safeSetText('stat-hall',  events.filter(e => e['類型'] === '大講堂').length);
   }
 
   function buildFilterBar(events) {
@@ -314,15 +329,11 @@
 
   function updateFooterTime() {
     const now = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-    document.getElementById('footer-time').textContent = `最後更新 · ${now}`;
+    safeSetText('footer-time', '最後更新 · ' + now);
   }
 
   function showError(msg) {
-    document.getElementById('events-list').innerHTML = `
-      <div class="error-state">
-        <p>// 無法載入活動資料：${msg || '請稍後再試'}</p>
-        <button class="retry-btn" onclick="loadEvents()">重新載入</button>
-      </div>`;
+    safeSetHTML('events-list', '<div class="error-state"><p>// 無法載入活動資料：' + (msg || '請稍後再試') + '</p><button class="retry-btn" onclick="loadEvents()">重新載入</button></div>');
   }
 
   // ── 解析日期 ──────────────────────────────────
