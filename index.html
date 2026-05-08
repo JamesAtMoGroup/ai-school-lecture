@@ -238,7 +238,7 @@
       <div class="form-group">
         <label class="form-label">Email <span style="color:var(--live)">*</span></label>
         <input class="form-input" id="field-email" type="email" placeholder="example@email.com" autocomplete="email">
-        <span class="form-hint">// 報名確認將寄至此信箱</span>
+        <span class="form-hint">// 系統將驗證您的 AI 未來學院方案資格</span>
       </div>
     </div>
     <div class="modal-footer">
@@ -339,11 +339,8 @@
   function parseDate(raw) {
     if (!raw) return null;
     const s = String(raw);
-    // ISO 格式：2026-05-12T16:00:00.000Z（GAS 回傳 Date 物件序列化）
-    // 用 UTC 日期避免時區偏移（+8 可能讓日期往前一天）
     const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]);
-    // 原始格式：2026/05/13/ (週三)
     const slash = s.match(/(\d{4})\/(\d{2})\/(\d{2})/);
     if (slash) return new Date(+slash[1], +slash[2] - 1, +slash[3]);
     return null;
@@ -352,10 +349,8 @@
   function parseTime(raw) {
     if (!raw) return '';
     const s = String(raw);
-    // ISO 時間格式：1899-12-30T12:00:00.000Z → 取 UTC 時分
     const iso = s.match(/T(\d{2}):(\d{2})/);
     if (iso) return `${iso[1]}:${iso[2]}`;
-    // 已經是 HH:MM 格式
     const hm = s.match(/(\d{1,2}):(\d{2})/);
     if (hm) return `${String(hm[1]).padStart(2,'0')}:${hm[2]}`;
     return s;
@@ -364,7 +359,6 @@
   function getWeekLabel(date) {
     const month = date.getMonth() + 1;
     const day   = date.getDate();
-    // 計算是當月第幾週（以週一為起點）
     const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
     const weekNum  = Math.ceil((day + (firstDay === 0 ? 6 : firstDay - 1)) / 7);
     const weekCn   = ['一','二','三','四','五'][weekNum - 1] || weekNum;
@@ -382,7 +376,6 @@
     }
     document.getElementById('no-results').style.display = 'none';
 
-    // 依日期排序
     const sorted = [...events].sort((a, b) => {
       const da = parseDate(a['日期']), db = parseDate(b['日期']);
       if (!da || !db) return 0;
@@ -395,7 +388,6 @@
       const date = parseDate(ev['日期']);
       const weekLabel = date ? getWeekLabel(date) : '';
 
-      // 插入週分隔線
       if (weekLabel && weekLabel !== lastWeek) {
         const div = document.createElement('div');
         div.className = 'week-divider';
@@ -465,7 +457,6 @@
         </button>
       </div>`;
 
-    // Click to expand
     card.addEventListener('click', e => {
       if (e.target.closest('.register-btn')) return;
       const detail = card.querySelector('.event-detail');
@@ -515,8 +506,8 @@
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-  // ── Submit ───────────────────────────────────
-  function submitRegistration() {
+  // ── Submit (兩段式：先驗資格，再寫入) ─────────────────────
+  async function submitRegistration() {
     const name    = document.getElementById('field-name').value.trim();
     const email   = document.getElementById('field-email').value.trim();
     const eventId = document.getElementById('field-event-id').value;
@@ -526,22 +517,49 @@
 
     setSubmitLoading(true);
 
-    const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-    const params = new URLSearchParams({ action: 'register', ts: timestamp, email: email, name: name, eventId: eventId });
-    const url = GAS_URL + '?' + params.toString();
+    try {
+      // ── Stage 1: 檢查資格（Kolable）
+      const checkUrl = GAS_URL + '?action=check-eligibility'
+        + '&email='   + encodeURIComponent(email)
+        + '&eventId=' + encodeURIComponent(eventId);
+      const checkRes = await fetch(checkUrl);
+      const result   = await checkRes.json();
 
-    const img = new Image();
-    img.onload = img.onerror = () => {
+      if (!result.ok) {
+        showToast(result.error || '系統錯誤，請稍後再試', true);
+        setSubmitLoading(false);
+        return;
+      }
+      if (!result.eligible) {
+        showToast(result.reason || '不符合報名資格', true);
+        setSubmitLoading(false);
+        return;
+      }
+
+      // ── Stage 2: 通過資格 → 寫入報名紀錄
+      const ts = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+      const regUrl = GAS_URL + '?' + new URLSearchParams({
+        action: 'register', ts: ts, email: email, name: name, eventId: eventId
+      }).toString();
+      await fetch(regUrl);
+
+      // 成功 UI 更新
       if (currentCard) {
         currentCard.classList.add('registered');
         const regBtn = currentCard.querySelector('.register-btn');
-        if (regBtn) { regBtn.textContent = '✓ 已報名'; regBtn.classList.add('done'); regBtn.onclick = null; }
+        if (regBtn) {
+          regBtn.textContent = '✓ 已報名';
+          regBtn.classList.add('done');
+          regBtn.onclick = null;
+        }
       }
       closeModal();
-      showToast('✓ 報名成功！資料已寫入');
+      showToast('✓ 報名成功（' + result.plan + '）');
+    } catch (err) {
+      showToast('連線錯誤：' + (err.message || err), true);
+    } finally {
       setSubmitLoading(false);
-    };
-    img.src = url;
+    }
   }
 
   function setSubmitLoading(on) {
