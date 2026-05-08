@@ -144,7 +144,7 @@
   <div class="header-glow"></div>
   <div class="header-inner">
     <div class="eyebrow">未來學院 · Future Academy · 2026</div>
-    <h1>每月<span>大講堂 x 直播</span></h1>
+    <h1>講座<span>計畫</span></h1>
     <p class="subtitle">// LECTURE SERIES · MAY 2026 · ONLINE</p>
     <div class="header-meta">
       <div class="meta-item"><span class="meta-label">場次總數</span><span class="meta-value">9</span></div>
@@ -551,14 +551,9 @@
     });
     const url = GAS_URL + '?' + params.toString();
 
-    // 用隱藏 iframe 送出，不會觸發 CORS 錯誤
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.name = 'gas-target-' + Date.now();
-    document.body.appendChild(iframe);
-
-    iframe.onload = () => {
-      // 成功送出
+    // 用 Image beacon 送出 GET 請求（最穩定的跨域方式）
+    const img = new Image();
+    img.onload = img.onerror = () => {
       if (currentCard) {
         currentCard.classList.add('registered');
         const regBtn = currentCard.querySelector('.register-btn');
@@ -567,16 +562,8 @@
       closeModal();
       showToast('✓ 報名成功！資料已寫入');
       setSubmitLoading(false);
-      setTimeout(() => iframe.remove(), 3000);
     };
-
-    iframe.onerror = () => {
-      showToast('送出失敗，請稍後再試', true);
-      setSubmitLoading(false);
-      iframe.remove();
-    };
-
-    iframe.src = url;
+    img.src = url;
   }
 
   function setSubmitLoading(on) {
