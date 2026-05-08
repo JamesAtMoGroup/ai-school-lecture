@@ -196,11 +196,9 @@
 </header>
 
 <div class="filter-wrap">
-  <div class="filter-bar">
+  <div class="filter-bar" id="filter-bar">
     <span class="filter-label">篩選</span>
-    <button class="filter-btn active" onclick="filterEvents('all',this)">全部</button>
-    <button class="filter-btn" onclick="filterEvents('直播',this)">直播</button>
-    <button class="filter-btn" onclick="filterEvents('大講堂',this)">大講堂</button>
+    <!-- 動態產生 -->
   </div>
 </div>
 
@@ -272,9 +270,13 @@
       const res  = await fetch(GAS_URL + '?action=events');
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      allEvents = json.data;
+      allEvents = (json.data || []).filter(e =>
+        e['活動 ID'] !== '' && e['活動 ID'] !== null && e['活動 ID'] !== undefined &&
+        e['標題'] !== '' && e['標題'] !== null && e['標題'] !== undefined
+      );
       renderEvents(allEvents);
       updateStats(allEvents);
+      buildFilterBar(allEvents);
       updateFooterTime();
     } catch (err) {
       showError(err.message);
@@ -282,9 +284,32 @@
   }
 
   function updateStats(events) {
-    document.getElementById('stat-total').textContent = events.length;
-    document.getElementById('stat-live').textContent  = events.filter(e => e['類型'] === '直播').length;
-    document.getElementById('stat-hall').textContent  = events.filter(e => e['類型'] === '大講堂').length;
+    const el = id => document.getElementById(id);
+    if (el('stat-total')) el('stat-total').textContent = events.length;
+    if (el('stat-live'))  el('stat-live').textContent  = events.filter(e => e['類型'] === '直播').length;
+    if (el('stat-hall'))  el('stat-hall').textContent  = events.filter(e => e['類型'] === '大講堂').length;
+  }
+
+  function buildFilterBar(events) {
+    const bar = document.getElementById('filter-bar');
+    if (!bar) return;
+    // 取出所有不重複類型
+    const types = [...new Set(events.map(e => e['類型']).filter(Boolean))];
+    bar.innerHTML = '<span class="filter-label">篩選</span>';
+    // 全部按鈕
+    const allBtn = document.createElement('button');
+    allBtn.className = 'filter-btn' + (currentFilter === 'all' ? ' active' : '');
+    allBtn.textContent = '全部';
+    allBtn.onclick = () => filterEvents('all', allBtn);
+    bar.appendChild(allBtn);
+    // 各類型
+    types.forEach(type => {
+      const btn = document.createElement('button');
+      btn.className = 'filter-btn' + (currentFilter === type ? ' active' : '');
+      btn.textContent = type;
+      btn.onclick = () => filterEvents(type, btn);
+      bar.appendChild(btn);
+    });
   }
 
   function updateFooterTime() {
