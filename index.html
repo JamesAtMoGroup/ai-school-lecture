@@ -184,9 +184,9 @@
   <div class="header-grid"></div>
   <div class="header-glow"></div>
   <div class="header-inner">
-    <div class="eyebrow">未來學院 · Future Academy · 2026</div>
-    <h1>講座<span>計畫</span></h1>
-    <p class="subtitle">// LECTURE SERIES · 2026 · ONLINE</p>
+    <div class="eyebrow">未來學院 · Future Academy</div>
+    <h1>每月<span>大講堂 x 直播</span></h1>
+    <p class="subtitle">// LECTURE SERIES · ONLINE</p>
     <div class="header-meta">
       <div class="meta-item"><span class="meta-label">場次總數</span><span class="meta-value" id="stat-total">—</span></div>
       <div class="meta-item"><span class="meta-label">直播場次</span><span class="meta-value" id="stat-live">—</span></div>
@@ -214,7 +214,6 @@
 
 <footer>
   <div class="footer-brand">未來學院</div>
-  <div class="footer-note" id="footer-time">資料來源 · Google Sheets · 講座安排工作表</div>
 </footer>
 
 <!-- MODAL -->
@@ -528,7 +527,7 @@
     setSubmitLoading(true);
 
     const timestamp = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-    const params = new URLSearchParams({ '時間戳記': timestamp, 'Email': email, '姓名': name, '活動 ID': eventId });
+    const params = new URLSearchParams({ action: 'register', ts: timestamp, email: email, name: name, eventId: eventId });
     const url = GAS_URL + '?' + params.toString();
 
     const img = new Image();
