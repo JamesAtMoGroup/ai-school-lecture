@@ -144,7 +144,7 @@
   <div class="header-glow"></div>
   <div class="header-inner">
     <div class="eyebrow">未來學院 · Future Academy · 2026</div>
-    <h1>每月<span>直播 x 大講堂</span></h1>
+    <h1>每月<span>大講堂 x 直播</span></h1>
     <p class="subtitle">// LECTURE SERIES · MAY 2026 · ONLINE</p>
     <div class="header-meta">
       <div class="meta-item"><span class="meta-label">場次總數</span><span class="meta-value">9</span></div>
@@ -528,8 +528,8 @@
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-  // Submit
-  async function submitRegistration() {
+  // Submit — 使用隱藏 iframe 繞過 GAS CORS 限制
+  function submitRegistration() {
     const name = document.getElementById('field-name').value.trim();
     const email = document.getElementById('field-email').value.trim();
     const eventId = document.getElementById('field-event-id').value;
@@ -541,21 +541,24 @@
 
     const now = new Date();
     const timestamp = now.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-    const payload = { '時間戳記': timestamp, 'Email': email, '姓名': name, '活動 ID': eventId };
 
-    try {
-      if (!GAS_URL || GAS_URL === 'https://script.google.com/macros/s/AKfycbz0Gtm_CwNEHHRMjyIX3HES7ezQfdPonMWAc3iFr6L1FmXmXvoal6JpYhiFRGSettyI/exec') {
-        // Demo mode
-        await new Promise(r => setTimeout(r, 1200));
-      } else {
-        await fetch(GAS_URL, {
-          method: 'POST',
-          mode: 'no-cors',               // GAS doesn't set CORS by default on redirect
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify(payload)
-        });
-      }
-      // Mark card as registered
+    // 用 GET 參數方式送到 GAS（最穩定的跨域方式）
+    const params = new URLSearchParams({
+      '時間戳記': timestamp,
+      'Email': email,
+      '姓名': name,
+      '活動 ID': eventId
+    });
+    const url = GAS_URL + '?' + params.toString();
+
+    // 用隱藏 iframe 送出，不會觸發 CORS 錯誤
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.name = 'gas-target-' + Date.now();
+    document.body.appendChild(iframe);
+
+    iframe.onload = () => {
+      // 成功送出
       if (currentCard) {
         currentCard.classList.add('registered');
         const regBtn = currentCard.querySelector('.register-btn');
@@ -563,11 +566,17 @@
       }
       closeModal();
       showToast('✓ 報名成功！資料已寫入');
-    } catch (err) {
-      showToast('送出失敗，請稍後再試', true);
-    } finally {
       setSubmitLoading(false);
-    }
+      setTimeout(() => iframe.remove(), 3000);
+    };
+
+    iframe.onerror = () => {
+      showToast('送出失敗，請稍後再試', true);
+      setSubmitLoading(false);
+      iframe.remove();
+    };
+
+    iframe.src = url;
   }
 
   function setSubmitLoading(on) {
