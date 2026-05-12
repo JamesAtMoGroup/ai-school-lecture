@@ -240,6 +240,11 @@
         <input class="form-input" id="field-email" type="email" placeholder="example@email.com" autocomplete="email">
         <span class="form-hint">// 系統將驗證您的 AI 未來學院方案資格</span>
       </div>
+      <div class="form-group">
+        <label class="form-label">推薦碼 <span style="color:var(--muted);font-weight:normal;letter-spacing:0;text-transform:none;">（選填）</span></label>
+        <input class="form-input" id="field-referral" type="text" placeholder="若有推薦碼請填寫" autocomplete="off">
+        <span class="form-hint">// 訂閱「每日 AI 知識庫」學員可填入專屬推薦碼</span>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="cancel-btn" onclick="closeModal()">取消</button>
@@ -489,6 +494,7 @@
     document.getElementById('field-event-id').value = currentCard.dataset.id;
     document.getElementById('field-name').value = '';
     document.getElementById('field-email').value = '';
+    document.getElementById('field-referral').value = '';
     setSubmitLoading(false);
     document.getElementById('modal-overlay').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -508,9 +514,10 @@
 
   // ── Submit (兩段式：先驗資格，再寫入) ─────────────────────
   async function submitRegistration() {
-    const name    = document.getElementById('field-name').value.trim();
-    const email   = document.getElementById('field-email').value.trim();
-    const eventId = document.getElementById('field-event-id').value;
+    const name         = document.getElementById('field-name').value.trim();
+    const email        = document.getElementById('field-email').value.trim();
+    const referralCode = document.getElementById('field-referral').value.trim();
+    const eventId      = document.getElementById('field-event-id').value;
 
     if (!name)  { showToast('請填寫姓名', true); return; }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('請填寫有效的 Email', true); return; }
@@ -518,10 +525,11 @@
     setSubmitLoading(true);
 
     try {
-      // ── Stage 1: 檢查資格（Kolable）
+      // ── Stage 1: 檢查資格（Kolable + 推薦碼）
       const checkUrl = GAS_URL + '?action=check-eligibility'
-        + '&email='   + encodeURIComponent(email)
-        + '&eventId=' + encodeURIComponent(eventId);
+        + '&email='        + encodeURIComponent(email)
+        + '&eventId='      + encodeURIComponent(eventId)
+        + '&referralCode=' + encodeURIComponent(referralCode);
       const checkRes = await fetch(checkUrl);
       const result   = await checkRes.json();
 
@@ -541,7 +549,20 @@
       const regUrl = GAS_URL + '?' + new URLSearchParams({
         action: 'register', ts: ts, email: email, name: name, eventId: eventId
       }).toString();
-      await fetch(regUrl);
+      const regRes  = await fetch(regUrl);
+      const regJson = await regRes.json().catch(() => null);
+
+      // 重複報名（GAS 端擋下）
+      if (regJson && regJson.duplicate) {
+        showToast('您已報名過此活動', true);
+        setSubmitLoading(false);
+        return;
+      }
+      if (regJson && !regJson.ok) {
+        showToast(regJson.error || '寫入失敗', true);
+        setSubmitLoading(false);
+        return;
+      }
 
       // 成功 UI 更新
       if (currentCard) {
