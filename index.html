@@ -190,6 +190,7 @@
     <div class="header-meta">
       <div class="meta-item"><span class="meta-label">場次總數</span><span class="meta-value" id="stat-total">—</span></div>
       <div class="meta-item"><span class="meta-label">直播場次</span><span class="meta-value" id="stat-live">—</span></div>
+      <div class="meta-item"><span class="meta-label">實戰直播場次</span><span class="meta-value" id="stat-practice">—</span></div>
       <div class="meta-item"><span class="meta-label">大師講堂場次</span><span class="meta-value" id="stat-hall">—</span></div>
     </div>
   </div>
@@ -304,9 +305,10 @@
   }
 
   function updateStats(events) {
-    safeSetText('stat-total', events.length);
-    safeSetText('stat-live',  events.filter(e => e['類型'] === '直播').length);
-    safeSetText('stat-hall',  events.filter(e => e['類型'] === '大師講堂').length);
+    safeSetText('stat-total',    events.length);
+    safeSetText('stat-live',     events.filter(e => e['類型'] === '直播').length);
+    safeSetText('stat-practice', events.filter(e => e['類型'] === '實戰直播').length);
+    safeSetText('stat-hall',     events.filter(e => e['類型'] === '大師講堂').length);
   }
 
   function buildFilterBar(events) {
