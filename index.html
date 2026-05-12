@@ -545,9 +545,12 @@
       }
 
       // ── Stage 2: 通過資格 → 寫入報名紀錄
+      // 推薦碼只在實際被採用時才記錄（result.plan 含「推薦碼」字串）
+      const codeApplied = (result.plan && result.plan.indexOf('推薦碼') !== -1) ? referralCode : '';
       const ts = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
       const regUrl = GAS_URL + '?' + new URLSearchParams({
-        action: 'register', ts: ts, email: email, name: name, eventId: eventId
+        action: 'register', ts: ts, email: email, name: name, eventId: eventId,
+        referralCode: codeApplied
       }).toString();
       const regRes  = await fetch(regUrl);
       const regJson = await regRes.json().catch(() => null);
