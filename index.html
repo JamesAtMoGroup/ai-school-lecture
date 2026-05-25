@@ -332,11 +332,11 @@
       btn.onclick = () => filterEvents(type, btn);
       bar.appendChild(btn);
     });
-    // 過完講堂（只有真的有過往場次才顯示；點了才看得到過往資訊）
+    // 過往講堂（只有真的有過往場次才顯示；點了才看得到過往資訊）
     if (events.some(isPast)) {
       const pastBtn = document.createElement('button');
       pastBtn.className = 'filter-btn filter-btn-past' + (currentFilter === 'past' ? ' active' : '');
-      pastBtn.textContent = '過完講堂';
+      pastBtn.textContent = '過往講堂';
       pastBtn.onclick = () => filterEvents('past', pastBtn);
       bar.appendChild(pastBtn);
     }
