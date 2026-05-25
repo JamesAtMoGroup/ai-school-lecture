@@ -288,7 +288,7 @@
 
     allEvents = (json.data || []).filter(e => e['活動 ID'] && e['標題']);
 
-    try { renderEvents(allEvents); } catch(e) { console.error('renderEvents error:', e); }
+    try { renderForFilter(); } catch(e) { console.error('renderForFilter error:', e); }
     try { updateStats(allEvents); } catch(e) { console.error('updateStats error:', e); }
     try { buildFilterBar(allEvents); } catch(e) { console.error('buildFilterBar error:', e); }
     try { updateFooterTime(); } catch(e) { console.error('updateFooterTime error:', e); }
@@ -314,8 +314,9 @@
   function buildFilterBar(events) {
     const bar = document.getElementById('filter-bar');
     if (!bar) return;
-    // 取出所有不重複類型
-    const types = [...new Set(events.map(e => e['類型']).filter(Boolean))];
+    // 類型只取「未過時」場次的類型（過往的不影響上方篩選）
+    const upcoming = events.filter(e => !isPast(e));
+    const types = [...new Set(upcoming.map(e => e['類型']).filter(Boolean))];
     bar.innerHTML = '<span class="filter-label">篩選</span>';
     // 全部按鈕
     const allBtn = document.createElement('button');
@@ -331,6 +332,14 @@
       btn.onclick = () => filterEvents(type, btn);
       bar.appendChild(btn);
     });
+    // 過完講堂（只有真的有過往場次才顯示；點了才看得到過往資訊）
+    if (events.some(isPast)) {
+      const pastBtn = document.createElement('button');
+      pastBtn.className = 'filter-btn filter-btn-past' + (currentFilter === 'past' ? ' active' : '');
+      pastBtn.textContent = '過完講堂';
+      pastBtn.onclick = () => filterEvents('past', pastBtn);
+      bar.appendChild(pastBtn);
+    }
   }
 
   function updateFooterTime() {
@@ -363,6 +372,21 @@
     return s;
   }
 
+  // ── 判斷場次是否已過時（用 日期 + 結束時間；沒結束時間就用開始時間，再不然算當天結束）──
+  function eventEndDate(ev) {
+    const d = parseDate(ev['日期']);
+    if (!d) return null;            // 無法解析日期 → 不當成過往，照常顯示
+    const t = parseTime(ev['結束時間']) || parseTime(ev['開始時間']) || '23:59';
+    const m = String(t).match(/(\d{1,2}):(\d{2})/);
+    const end = new Date(d);
+    if (m) end.setHours(+m[1], +m[2], 0, 0); else end.setHours(23, 59, 0, 0);
+    return end;
+  }
+  function isPast(ev) {
+    const e = eventEndDate(ev);
+    return e ? e.getTime() < Date.now() : false;
+  }
+
   function getWeekLabel(date) {
     const month = date.getMonth() + 1;
     const day   = date.getDate();
@@ -373,7 +397,7 @@
   }
 
   // ── 渲染活動列表 ──────────────────────────────
-  function renderEvents(events) {
+  function renderEvents(events, pastMode) {
     const list = document.getElementById('events-list');
     list.innerHTML = '';
 
@@ -389,6 +413,7 @@
       if (da - db !== 0) return da - db;
       return (a['開始時間'] || '').localeCompare(b['開始時間'] || '');
     });
+    if (pastMode) sorted.reverse();   // 過往場次：最近的在最前面
 
     let lastWeek = '';
     sorted.forEach((ev, i) => {
@@ -484,9 +509,18 @@
     currentFilter = type;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    renderForFilter();
+  }
 
-    const filtered = type === 'all' ? allEvents : allEvents.filter(e => e['類型'] === type);
-    renderEvents(filtered);
+  // 依目前篩選決定要顯示哪些場次：預設只顯示「未過時」；選「過完講堂」才顯示過往
+  function renderForFilter() {
+    if (currentFilter === 'past') {
+      renderEvents(allEvents.filter(isPast), true);
+    } else {
+      const upcoming = allEvents.filter(e => !isPast(e));
+      const list = currentFilter === 'all' ? upcoming : upcoming.filter(e => e['類型'] === currentFilter);
+      renderEvents(list, false);
+    }
   }
 
   // ── Modal ────────────────────────────────────
