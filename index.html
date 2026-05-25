@@ -512,7 +512,7 @@
     renderForFilter();
   }
 
-  // 依目前篩選決定要顯示哪些場次：預設只顯示「未過時」；選「過完講堂」才顯示過往
+  // 依目前篩選決定要顯示哪些場次：預設只顯示「未過時」；選「過往講堂」才顯示過往
   function renderForFilter() {
     if (currentFilter === 'past') {
       renderEvents(allEvents.filter(isPast), true);
